@@ -85,6 +85,8 @@ class MinecraftDatasetLMDB(Dataset):
             with open(txt_path, "r") as f:
                 self.length = int(f.read())
                 f.close()
+        
+        # self.centroid = np.load(os.path.join(os.path.dirname(path), "centroid.npy"))
 
     def __len__(self):
         return self.length
@@ -97,6 +99,7 @@ class MinecraftDatasetLMDB(Dataset):
         clip_buf = self.lmdb.begin(write=False).get(idx.to_bytes(8, "big"))
         
         data = np.frombuffer(clip_buf, dtype=np.float32)
+        # data = (data - self.centroid) / np.linalg.norm(data - self.centroid)
 
         return data
 
@@ -107,6 +110,84 @@ class MinecraftDatasetLMDB(Dataset):
         if os.path.exists(self.lmdb_out_path):
             # shutil.rmtree(self.lmdb_out_path)
             print("LMDB database already exists. Remove first.")
+
+        try:
+            idx = 0
+
+            env = lmdb.open(self.lmdb_out_path, map_size=int(1e12))
+            txn = env.begin(write=True)
+            txt_path = os.path.join(self.lmdb_out_path, "index.txt")
+
+            for img_file in tqdm(self.clip_files):
+                try:
+                    clip_np = np.load(img_file)
+
+                    for i in range(len(clip_np)):
+                        raw_clip_bytes = clip_np[i].tobytes()
+                        txn.put(idx.to_bytes(8, "big"), raw_clip_bytes)
+                        idx += 1
+                except Exception as e:
+                    print("Error processing", img_file, e)
+                
+                    
+            txn.commit()
+            env.sync()
+            env.close()
+
+            with open(txt_path, "w") as f:
+                f.write(f"{idx}")
+                f.close()
+
+        except lmdb.Error as e:
+            print(f"An LMDB error occurred: {e}")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+        
+        print("LMDB database created at", self.lmdb_out_path)
+        print(f"Wrote {idx} files")
+
+
+class CalvinDatasetLMDB(Dataset):
+    def __init__(self, path: str, lmdb_path: str, length: int = None):
+        self.clip_files = sorted(glob(os.path.join(path, "*.npy")))
+
+        assert len(self.clip_files) > 0
+        print("Found", len(self.clip_files), "files")
+
+        self.lmdb = None
+        self.lmdb_out_path = lmdb_path
+
+        txt_path = os.path.join(lmdb_path, "index.txt")
+        if os.path.exists(txt_path):
+            with open(txt_path, "r") as f:
+                self.length = int(f.read())
+                f.close()
+        
+        # self.centroid = np.load(os.path.join(os.path.dirname(path), "centroid.npy"))
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, idx):
+        if self.lmdb is None:
+            self._init_lmdb()
+        
+        # clip_path, data_idx = self.indices[idx]
+        clip_buf = self.lmdb.begin(write=False).get(idx.to_bytes(8, "big"))
+        
+        data = np.frombuffer(clip_buf, dtype=np.float32)
+        # data = (data - self.centroid) / np.linalg.norm(data - self.centroid)
+
+        return data
+
+    def _init_lmdb(self):
+        self.lmdb = lmdb.open(self.lmdb_out_path, readonly=True, lock=False, readahead=True, meminit=False)
+    
+    def create_lmdb_database(self):
+        if os.path.exists(self.lmdb_out_path):
+            shutil.rmtree(self.lmdb_out_path)
+            print("LMDB database already exists. Remove first.")
+        os.makedirs(self.lmdb_out_path, exist_ok=True)
 
         try:
             idx = 0
@@ -175,7 +256,14 @@ class MinecraftEmbeddingDataModule(pl.LightningDataModule):
         return DataLoader(self.ds_test, num_workers=4, batch_size=self.batch_size, shuffle=False)
     
 if __name__ == "__main__":
-    ds_train = MinecraftDatasetLMDB("/131_data/jihwan/data/minecraft_lmdb/train", "/cvdata1/jihwan/minecraft_lmdb/lmdb/train")
-    ds_train.create_lmdb_database()
+    ### Minecraft Dataset
+    # ds_train = MinecraftDatasetLMDB("/131_data/jihwan/data/minecraft_lmdb/train", "/cvdata1/jihwan/minecraft_lmdb/lmdb/train")
+    # ds_train.create_lmdb_database()
     # ds_val = MinecraftDatasetLMDB("/131_data/jihwan/data/minecraft_lmdb/test", "/cvdata1/jihwan/minecraft_lmdb/lmdb/test")
+    # ds_val.create_lmdb_database()
+
+    ### Calvin Dataset
+    ds_train = CalvinDatasetLMDB("/131_data/jihwan/data/calvin_lmdb/ABCD", "/cvdata1/jihwan/calvin_lmdb/lmdb/ABCD")
+    ds_train.create_lmdb_database()
+    # ds_val = CalvinDatasetLMDB("/131_data/jihwan/data/calvin_lmdb/ABCD_val", "/cvdata1/jihwan/calvin_lmdb/lmdb/ABCD_val")
     # ds_val.create_lmdb_database()

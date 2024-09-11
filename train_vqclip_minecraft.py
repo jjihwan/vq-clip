@@ -5,7 +5,7 @@ from lightning.pytorch.loggers import WandbLogger
 import wandb
 import torch
 import datetime
-
+import json
 torch.set_float32_matmul_precision("high")
 
 # Workaround for 'too many open files' error
@@ -18,7 +18,11 @@ from vq_clip.trainer import MinecraftVQCLIPTrainer
 
 def main():
     now = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    experiment = "vq_d4_s4_r4"
+    with open('model_conf/minecraft-vq-clip/vq_config.json', 'r') as f:
+        config = json.load(f)
+    f.close()
+
+    experiment = f"rvqvae_d{config['vq_codebook_dim']}_s{config['vq_codebook_size']}_mse"
 
     nowname = f"{experiment}-{now}"
     wandb_logger = WandbLogger(project="vq-clip-minecraft", name=nowname)

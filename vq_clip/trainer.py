@@ -225,15 +225,14 @@ class MinecraftVQCLIPTrainer(pl.LightningModule):
         """
         img_emb normalized image embedding tensor batch from CLIP
         """
-        alpha = 10
         res = self.vision_vq_adapter(img_emb, return_perplexity=True)
         quant_img_emb = res["z"]
         cmt_loss = res["loss"]
         perplexity = res["perplexity"]
 
-        rec_loss = torch.nn.functional.l1_loss(img_emb, quant_img_emb)
+        rec_loss = torch.nn.functional.mse_loss(img_emb, quant_img_emb)
 
-        loss = rec_loss + alpha * cmt_loss
+        loss = rec_loss + cmt_loss
 
         logs = dict(
             loss=loss,
@@ -241,12 +240,14 @@ class MinecraftVQCLIPTrainer(pl.LightningModule):
             cmt_loss=cmt_loss,
             perplexity=perplexity,
         )
-        # print("img, quant")
-        # print(img_emb)
+        print("img, quant")
+        print(torch.cat([img_emb[0][:10][None], quant_img_emb[0][:10][None]], dim=0))
+        print(torch.cat([img_emb[1][:10][None], quant_img_emb[1][:10][None]], dim=0))
+        # print(img_emb[0][:10])
         # print()
-        # print(quant_img_emb)
+        # print(quant_img_emb[0][:10])
         # print()
-        # print(res['codes'].shape, res["codes"])
+        print(res['codes'].shape, res["codes"])
         return loss, logs
 
     def validation_step(self, batch, batch_idx):

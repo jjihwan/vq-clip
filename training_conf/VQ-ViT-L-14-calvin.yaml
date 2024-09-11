@@ -50,9 +50,9 @@ model:
 
   torch_compile: false
 data:
-  path_train: /131_data/jihwan/data/minecraft_lmdb/train
-  path_val: /131_data/jihwan/data/minecraft_lmdb/test
-  path_train_lmdb: /cvdata1/jihwan/minecraft_lmdb/lmdb/train
-  path_val_lmdb: /cvdata1/jihwan/minecraft_lmdb/lmdb/test
+  path_train: /131_data/jihwan/data/calvin_lmdb/ABCD
+  path_val: /131_data/jihwan/data/calvin_lmdb/ABCD_val
+  path_train_lmdb: /cvdata1/jihwan/calvin_lmdb/lmdb/ABCD
+  path_val_lmdb: /cvdata1/jihwan/calvin_lmdb/lmdb/ABCD_val
   batch_size: 4096
 ckpt_path: null
